@@ -82,7 +82,7 @@ jobs:
       - name: Stage APK
         run: cp android/app/build/outputs/apk/release/*.apk "Fylax-${{ needs.setup.outputs.version }}.apk"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: apk
           path: Fylax-${{ needs.setup.outputs.version }}.apk
@@ -124,7 +124,7 @@ jobs:
             /DReleaseVersion="v${{ needs.setup.outputs.version }}" `
             /DSourceDir="$src" /DOutputDir="$out"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: exe
           path: dist\Fylax-${{ needs.setup.outputs.version }}.exe
@@ -141,7 +141,7 @@ jobs:
           cd extension/chromium
           zip -r "$GITHUB_WORKSPACE/Fylax-extension-${{ needs.setup.outputs.version }}.zip" .
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: extension
           path: Fylax-extension-${{ needs.setup.outputs.version }}.zip
