@@ -1,0 +1,20 @@
+# Android / Gradle
+*.iml
+.gradle/
+/android/local.properties
+.idea/
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+*.jks
+*.keystore
+keystore_b64.txt
+apply_bundle.sh
+
+# .NET
+[Bb]in/
+[Oo]bj/
+/dist/
+*.user

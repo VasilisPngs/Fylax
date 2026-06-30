@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fylax</title>
+    <style>
+        :root {
+            --bg: #FAFAFA;
+            --surface: #FFFFFF;
+            --surface-high: #E8E8E8;
+            --border: #E2E2E2;
+            --text: #1B1B1B;
+            --text-dim: #464646;
+            --accent: #464646;
+            --on-accent: #FFFFFF;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #121212;
+                --surface: #1B1B1B;
+                --surface-high: #292929;
+                --border: #343434;
+                --text: #E2E2E2;
+                --text-dim: #C6C6C6;
+                --accent: #E2E2E2;
+                --on-accent: #1B1B1B;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 320px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Google Sans Flex", "Segoe UI", system-ui, sans-serif;
+            font-size: 13px;
+            padding: 16px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: var(--border);
+            border-radius: 22px;
+            cursor: pointer;
+            transition: background 0.25s ease;
+        }
+
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: var(--surface);
+            border-radius: 50%;
+            transition: transform 0.25s ease;
+        }
+
+        input:checked + .slider {
+            background: var(--accent);
+        }
+
+        input:checked + .slider::before {
+            transform: translateX(18px);
+            background: var(--on-accent);
+        }
+
+        .stats {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .stat {
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .updated {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+
+        .list-url {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .list-item.disabled .list-url {
+            color: var(--text-dim);
+            text-decoration: line-through;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 2px 4px;
+            border-radius: 6px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-high);
+            color: var(--text);
+        }
+
+        .add {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .add input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            color: var(--text);
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .add input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        button.primary {
+            width: 100%;
+            background: var(--accent);
+            color: var(--on-accent);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        button.primary:hover {
+            opacity: 0.9;
+        }
+
+        button.primary:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        button.ghost {
+            background: var(--surface-high);
+            color: var(--text);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">Fylax</span>
+        <label class="switch">
+            <input type="checkbox" id="master">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="net-count">0</div>
+            <div class="stat-label">Network rules</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="cos-count">0</div>
+            <div class="stat-label">Cosmetic</div>
+        </div>
+    </div>
+
+    <div class="updated" id="updated"></div>
+
+    <div class="section-label">Filter lists</div>
+    <div class="list" id="list"></div>
+
+    <div class="add">
+        <input type="text" id="add-url" placeholder="https://example.com/list.txt">
+        <button class="ghost" id="add-btn">Add</button>
+    </div>
+
+    <button class="primary" id="update-btn">Update now</button>
+
+    <script src="popup.js"></script>
+</body>
+</html>
