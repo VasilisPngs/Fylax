@@ -1,0 +1,170 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 1.0.0) - creates tag vX.Y.Z'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      versioncode: ${{ steps.v.outputs.versioncode }}
+    steps:
+      - id: v
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          MAJOR="${VERSION%%.*}"
+          REST="${VERSION#*.}"
+          MINOR="${REST%%.*}"
+          PATCH="${REST#*.}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "versioncode=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Verify keystore
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$KEYSTORE_PASSWORD" > /dev/null && echo "keystore OK"
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PversionName=${{ needs.setup.outputs.version }} \
+            -PversionCode=${{ needs.setup.outputs.versioncode }}
+
+      - name: Stage APK
+        run: cp android/app/build/outputs/apk/release/*.apk "Fylax-${{ needs.setup.outputs.version }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: Fylax-${{ needs.setup.outputs.version }}.apk
+          if-no-files-found: error
+
+  windows:
+    needs: setup
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Publish app
+        shell: pwsh
+        run: >
+          dotnet publish windows/src/Fylax/Fylax.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none -p:DebugSymbols=false
+          -p:Version=${{ needs.setup.outputs.version }}
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $src = Resolve-Path "windows\src\Fylax\bin\Release\net10.0-windows\win-x64\publish"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $out = Resolve-Path "dist"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\installer\Fylax.iss `
+            /DAppVersion="${{ needs.setup.outputs.version }}" `
+            /DReleaseVersion="v${{ needs.setup.outputs.version }}" `
+            /DSourceDir="$src" /DOutputDir="$out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exe
+          path: dist\Fylax-${{ needs.setup.outputs.version }}.exe
+          if-no-files-found: error
+
+  release:
+    needs: [ setup, android, windows ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: exe
+          path: dist
+
+      - name: Delete previous release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete "v${{ needs.setup.outputs.version }}" --repo "${{ github.repository }}" --yes || true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.setup.outputs.version }}
+          name: Fylax ${{ needs.setup.outputs.version }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/Fylax-${{ needs.setup.outputs.version }}.apk
+            dist/Fylax-${{ needs.setup.outputs.version }}.exe
+
+      - name: Set release date to now
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${{ needs.setup.outputs.version }}"
+          id=$(gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq .id)
+          gh api -X PATCH "repos/${{ github.repository }}/releases/$id" -F draft=true >/dev/null
+          gh api -X PATCH "repos/${{ github.repository }}/releases/$id" -F draft=false -F make_latest=true >/dev/null
